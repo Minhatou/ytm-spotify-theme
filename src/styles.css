@@ -1,0 +1,371 @@
+/* Spotify-style Theme for YouTube Music */
+
+:root {
+    --spotify-green: #1db954;
+    --spotify-black: #121212;
+    --spotify-light-black: #181818;
+    --spotify-grey: #b3b3b3;
+    --spotify-white: #ffffff;
+    --spotify-font: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Global Changes */
+body, ytmusic-app {
+    background-color: var(--spotify-black) !important;
+    font-family: var(--spotify-font) !important;
+}
+
+/* Sidebar Restyle */
+ytmusic-guide-renderer {
+    background-color: #000000 !important;
+    padding-top: 24px !important;
+}
+
+ytmusic-guide-entry-renderer {
+    margin: 4px 12px !important;
+    border-radius: 4px !important;
+    transition: background-color 0.2s ease !important;
+}
+
+ytmusic-guide-entry-renderer:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+ytmusic-guide-entry-renderer iron-icon {
+    color: var(--spotify-grey) !important;
+}
+
+ytmusic-guide-entry-renderer[active] {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+ytmusic-guide-entry-renderer[active] iron-icon {
+    color: var(--spotify-white) !important;
+}
+
+ytmusic-guide-entry-renderer .title {
+    font-weight: 700 !important;
+    color: var(--spotify-grey) !important;
+}
+
+ytmusic-guide-entry-renderer[active] .title {
+    color: var(--spotify-white) !important;
+}
+
+/* Discovery Pages / Grids */
+ytmusic-shelf-renderer, ytmusic-carousel-shelf-renderer {
+    background-color: transparent !important;
+}
+
+/* Rounded corners for everything */
+ytmusic-thumbnail-renderer, 
+ytmusic-thumbnail-renderer img, 
+#song-image, 
+#song-image img,
+.thumbnail-container,
+.thumbnail,
+ytmusic-responsive-list-item-renderer img,
+ytmusic-responsive-list-item-renderer .thumbnail,
+ytmusic-card-renderer img,
+ytmusic-card-renderer .thumbnail {
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    transition: transform 0.3s ease, box-shadow 0.3s ease !important;
+}
+
+ytmusic-thumbnail-renderer:hover {
+    transform: scale(1.02) !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5) !important;
+}
+
+/* Player Bar Restyle */
+ytmusic-player-bar {
+    background-color: var(--spotify-light-black) !important;
+    height: 90px !important;
+    border-top: 1px solid #282828 !important;
+}
+
+#progress-bar.ytmusic-player-bar {
+    --paper-slider-active-color: var(--spotify-green) !important;
+    --paper-slider-knob-color: var(--spotify-green) !important;
+    --paper-slider-container-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Spotify Dashboard / TV Layout Overlay */
+#spotify-dashboard {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 60px 80px;
+    box-sizing: border-box;
+    z-index: 1000;
+    color: white;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+    font-family: var(--spotify-font) !important;
+}
+
+body[dashboard-open] #spotify-dashboard {
+    opacity: 1;
+    pointer-events: all;
+}
+
+/* Hide native elements when dashboard is open */
+body[dashboard-open] ytmusic-player-page #player-page-player,
+body[dashboard-open] ytmusic-player-page .middle-controls,
+body[dashboard-open] ytmusic-player-page .right-controls,
+body[dashboard-open] ytmusic-player-bar {
+    display: none !important;
+}
+
+body[dashboard-open] #player-bar-background {
+    display: none !important;
+}
+
+/* TOP SECTION: Context & Up Next */
+.dashboard-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.dashboard-context {
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 2px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.dashboard-playlist-name {
+    font-size: 18px;
+    font-weight: 700;
+    margin-top: 5px;
+    color: white;
+}
+
+.dashboard-upnext {
+    background: rgba(0, 0, 0, 0.4);
+    padding: 8px 12px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+}
+
+.dashboard-upnext-thumb {
+    width: 48px;
+    height: 48px;
+    border-radius: 4px;
+    background-size: cover;
+}
+
+.dashboard-upnext-info {
+    font-size: 12px;
+}
+
+.dashboard-upnext-label {
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.6);
+    font-weight: 700;
+}
+
+/* MIDDLE SECTION: Main Info */
+.dashboard-middle {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    gap: 60px;
+    padding-bottom: 30px;
+}
+
+.dashboard-main-thumb {
+    width: 320px;
+    height: 320px;
+    min-width: 320px;
+    border-radius: 8px;
+    box-shadow: 0 40px 100px rgba(0,0,0,0.6);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: #282828; /* Fallback */
+    z-index: 10;
+}
+
+.dashboard-track-info {
+    max-width: 800px;
+    z-index: 10;
+}
+
+.dashboard-title {
+    font-size: 80px;
+    font-weight: 950;
+    margin: 0;
+    line-height: 1.1;
+    letter-spacing: -2px;
+    text-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.dashboard-artist {
+    font-size: 28px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.8);
+    margin-top: 20px;
+}
+
+/* BOTTOM SECTION: Timeline & Controls */
+.dashboard-bottom {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.dashboard-timeline-container {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.dashboard-progress-bar {
+    flex-grow: 1;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    position: relative;
+    cursor: pointer;
+}
+
+.dashboard-progress-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 0%;
+    background: white;
+    box-shadow: 0 0 10px rgba(255,255,255,0.5);
+    transition: width 0.1s linear;
+}
+
+.dashboard-controls-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 80px;
+}
+
+.dashboard-left-placeholder {
+    flex: 1;
+}
+
+.dashboard-controls {
+    flex: 2;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 40px;
+}
+
+.dashboard-bottom-right {
+    flex: 1;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 25px;
+}
+
+.dashboard-volume-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 150px;
+}
+
+.dashboard-volume-bar {
+    flex-grow: 1;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    position: relative;
+    cursor: pointer;
+}
+
+.dashboard-volume-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 50%;
+    background: white;
+}
+
+.dashboard-control-btn {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: transform 0.2s, opacity 0.2s;
+}
+
+.dashboard-control-btn:hover {
+    transform: scale(1.1);
+    opacity: 1;
+}
+
+.dashboard-play-pause {
+    background: white;
+    color: black;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1 !important;
+}
+
+/* Hide some clutter */
+#player-bar-background {
+    display: none !important;
+}
+
+/* Icons */
+tp-yt-paper-icon-button.ytmusic-player-bar {
+    color: var(--spotify-grey) !important;
+}
+
+tp-yt-paper-icon-button.ytmusic-player-bar:hover {
+    color: var(--spotify-white) !important;
+}
+
+/* Spotify Green for Play Button and Progress */
+#play-pause-button {
+    background-color: var(--spotify-white) !important;
+    color: black !important;
+    border-radius: 50% !important;
+    padding: 12px !important;
+    width: 48px !important;
+    height: 48px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: transform 0.2s ease !important;
+}
+
+#play-pause-button:hover {
+    transform: scale(1.1) !important;
+}
+
+/* Hide YTM's default rounded bar elements that might clash */
+.ytmusic-player-bar .time-info, 
+.ytmusic-player-bar .volume-slider {
+    color: var(--spotify-grey) !important;
+}

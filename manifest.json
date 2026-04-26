@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "Spotify Style for YouTube Music",
+  "version": "1.0",
+  "description": "Modifies YouTube Music to look like Spotify, including a Canvas-style player and restyled sidebar.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://music.youtube.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://music.youtube.com/*"
+      ],
+      "js": [
+        "src/content.js"
+      ],
+      "css": [
+        "src/styles.css"
+      ],
+      "run_at": "document_end"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/styles.css"
+      ],
+      "matches": [
+        "https://music.youtube.com/*"
+      ]
+    }
+  ]
+}
