@@ -6,8 +6,7 @@ Modifies YouTube Music to look like Spotify, featuring a full-screen Canvas play
 
 ## Screenshots
 
-![Spotify Style Preview](<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/433e6b97-bb75-435c-a4fd-d001983a0828" />
-)
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/433e6b97-bb75-435c-a4fd-d001983a0828" />
 
 
 
