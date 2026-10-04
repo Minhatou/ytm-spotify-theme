@@ -271,6 +271,29 @@
         return '';
     }
 
+    // Auto-switch YouTube Music from Video Mode to Song/Image Mode
+    function switchToSongMode() {
+        const songVideoRenderer = document.querySelector('ytmusic-song-video-button-renderer') ||
+                                  document.querySelector('#song-video-tab-group');
+        if (!songVideoRenderer) return;
+
+        const songBtn = songVideoRenderer.querySelector('#song-button') ||
+                        songVideoRenderer.querySelector('[aria-label*="Song"]') ||
+                        songVideoRenderer.querySelector('[aria-label*="Audio"]') ||
+                        songVideoRenderer.querySelectorAll('tp-yt-paper-button')[0] ||
+                        songVideoRenderer.querySelectorAll('button')[0];
+
+        if (songBtn) {
+            const isSelected = songBtn.hasAttribute('aria-pressed') 
+                ? songBtn.getAttribute('aria-pressed') === 'true'
+                : songBtn.classList.contains('aria-selected') || songBtn.hasAttribute('selected');
+
+            if (!isSelected) {
+                songBtn.click();
+            }
+        }
+    }
+
     // 4. State Update Logic
     function updateState() {
         const isPlayerOpen = !!document.querySelector('ytmusic-player-page[player-page-open]');
@@ -281,6 +304,7 @@
             state.isDashboardOpen = shouldShowDashboard;
             if (shouldShowDashboard) {
                 document.body.setAttribute('dashboard-open', '');
+                switchToSongMode();
             } else {
                 document.body.removeAttribute('dashboard-open');
             }
@@ -295,14 +319,27 @@
         document.getElementById('spotify-canvas-bg').style.opacity = '1';
         document.getElementById('spotify-canvas-overlay').style.opacity = '1';
 
-        // 1. IMPROVED THUMBNAIL EXTRACTION
-        // We look for the main high-res image first
-        const mainImg = document.querySelector('ytmusic-player-page #song-image img') ||
-                        document.querySelector('ytmusic-player-bar #song-image img');
+        // 1. HIGH-RES THUMBNAIL / JACKET EXTRACTION (MediaSession API + DOM Fallbacks)
+        let rawThumb = '';
+
+        // Priority 1: HTML5 MediaSession API (Always has full-res jacket artwork even in video mode)
+        if (navigator.mediaSession && navigator.mediaSession.metadata && navigator.mediaSession.metadata.artwork) {
+            const artworkArr = navigator.mediaSession.metadata.artwork;
+            if (Array.isArray(artworkArr) && artworkArr.length > 0) {
+                rawThumb = artworkArr[artworkArr.length - 1]?.src || '';
+            }
+        }
+
+        // Priority 2: DOM Image elements
+        if (!rawThumb || rawThumb.includes('data:image')) {
+            const mainImg = document.querySelector('ytmusic-player-page #song-image img') ||
+                            document.querySelector('ytmusic-player-bar #song-image img') ||
+                            document.querySelector('ytmusic-player-bar img');
+            rawThumb = mainImg?.src || mainImg?.getAttribute('src') || '';
+        }
         
-        const thumb = mainImg?.src || '';
-        if (thumb && !thumb.includes('data:image')) {
-            const highResThumb = thumb.replace(/=w\d+-h\d+/, '=w1200-h1200');
+        if (rawThumb && !rawThumb.includes('data:image')) {
+            const highResThumb = rawThumb.replace(/=w\d+-h\d+/, '=w1200-h1200');
             
             // Apply to main square and background
             const mainSquare = document.getElementById('main-thumb');
@@ -351,10 +388,22 @@
             }
         }
 
-        // 4. PLAY/PAUSE STATE
-        const isPlaying = document.querySelector('#play-pause-button')?.getAttribute('aria-label') === 'Pause';
-        document.getElementById('play-icon').style.display = isPlaying ? 'none' : 'block';
-        document.getElementById('pause-icon').style.display = isPlaying ? 'block' : 'none';
+        // 4. PLAY/PAUSE STATE (HTML5 Video API + DOM fallback)
+        const videoEl = document.querySelector('video');
+        let isPlaying = false;
+
+        if (videoEl) {
+            isPlaying = !videoEl.paused && !videoEl.ended && videoEl.currentTime > 0;
+        } else {
+            const playBtn = document.querySelector('#play-pause-button');
+            const label = (playBtn?.getAttribute('aria-label') || playBtn?.getAttribute('title') || '').toLowerCase();
+            isPlaying = label.includes('pause') || label.includes('tạm dừng') || label.includes('一時停止');
+        }
+
+        const playIcon = document.getElementById('play-icon');
+        const pauseIcon = document.getElementById('pause-icon');
+        if (playIcon) playIcon.style.display = isPlaying ? 'none' : 'block';
+        if (pauseIcon) pauseIcon.style.display = isPlaying ? 'block' : 'none';
 
         // 5. IMPROVED UP NEXT EXTRACTION WITH CONSOLE LOGGING
         const queueContainer = document.querySelector('ytmusic-player-queue') || document;
@@ -429,18 +478,6 @@
             nextThumb = getThumbnailFromItem(upNextItem);
         }
 
-        // Console log debug info when track or upnext changes
-        if (state.lastTrackId !== rawCurrentTitle) {
-            state.lastTrackId = rawCurrentTitle;
-            console.log('[Spotify Dashboard Debug]', {
-                currentTitle: rawCurrentTitle,
-                totalQueueItems: queueItems.length,
-                matchedIndex: currentIndex,
-                detectedNextTitle: nextTitle || 'None',
-                nextThumbUrl: nextThumb || 'None'
-            });
-        }
-
         if (nextTitle && nextTitle !== '...' && nextTitle !== '') {
             document.getElementById('upnext-title').innerText = nextTitle;
             if (nextThumb) {
@@ -451,11 +488,74 @@
             document.getElementById('dashboard-upnext').style.display = 'none';
         }
 
-        // 6. PLAYLIST CONTEXT
-        const playlistName = document.querySelector('ytmusic-player-page .title.ytmusic-metadata-renderer')?.innerText 
-                          || document.querySelector('ytmusic-player-queue #header .title')?.innerText
-                          || 'Your Library';
-        document.querySelector('.dashboard-playlist-name').innerText = playlistName;
+        // 6. PLAYLIST / ALBUM CONTEXT EXTRACTION
+        let cleanPlaylistName = '';
+        let contextLabel = 'PLAYING FROM PLAYLIST';
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const listId = urlParams.get('list') || '';
+
+        if (listId.startsWith('RD')) {
+            contextLabel = 'PLAYING FROM RADIO';
+        } else if (listId.startsWith('OLAK')) {
+            contextLabel = 'PLAYING FROM ALBUM';
+        } else if (listId === 'LM' || listId === 'LL') {
+            contextLabel = 'PLAYING FROM LIKED SONGS';
+        }
+
+        // 1. Extract Album/Playlist name from player bar byline links
+        const bylineLinks = Array.from(document.querySelectorAll('ytmusic-player-bar .byline a'));
+        if (bylineLinks.length >= 2) {
+            const albumLinkText = bylineLinks[bylineLinks.length - 1]?.innerText?.trim();
+            if (albumLinkText) {
+                cleanPlaylistName = albumLinkText.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ');
+            }
+        }
+
+        // 2. Try queue header title/subtitle if byline link wasn't available
+        if (!cleanPlaylistName) {
+            const candidateTitles = [
+                document.querySelector('ytmusic-player-queue .subtitle')?.innerText,
+                document.querySelector('ytmusic-player-queue #header .subtitle')?.innerText,
+                document.querySelector('ytmusic-player-queue-header .title')?.innerText,
+                document.querySelector('ytmusic-player-queue #header .title')?.innerText,
+                document.querySelector('ytmusic-player-queue .title')?.innerText,
+                document.querySelector('ytmusic-player-page .title.ytmusic-metadata-renderer')?.innerText,
+                document.querySelector('ytmusic-header-renderer .title')?.innerText
+            ];
+
+            for (const raw of candidateTitles) {
+                if (!raw) continue;
+                const txt = raw.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+                // Filter out "Autoplay is on" header
+                if (txt && !txt.toLowerCase().includes('autoplay')) {
+                    cleanPlaylistName = txt;
+                    break;
+                }
+            }
+        }
+
+        if (!cleanPlaylistName && !listId) {
+            contextLabel = 'PLAYING FROM QUEUE';
+            cleanPlaylistName = 'Queue';
+        }
+
+        if (!cleanPlaylistName) {
+            cleanPlaylistName = 'Your Library';
+        }
+
+        document.querySelector('.dashboard-context').innerText = contextLabel;
+        document.querySelector('.dashboard-playlist-name').innerText = cleanPlaylistName;
+
+        // Dedicated Playlist Context Console Log
+        if (state.lastTrackId !== rawCurrentTitle) {
+            state.lastTrackId = rawCurrentTitle;
+            console.log('[Spotify Dashboard] Playing From Playlist:', {
+                context: contextLabel,
+                playlistName: cleanPlaylistName,
+                track: rawCurrentTitle
+            });
+        }
 
         // 7. VOLUME SYNC
         if (!state.isDraggingVolume) {
