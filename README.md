@@ -1,9 +1,3 @@
-# Spotify Style for YouTube Music
-
-Modifies YouTube Music to look like Spotify, featuring a full-screen Canvas player and TV Dashboard layout.
-
----
-
 ## Screenshots
 
 <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/433e6b97-bb75-435c-a4fd-d001983a0828" />
