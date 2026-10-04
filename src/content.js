@@ -6,10 +6,19 @@
 (function() {
     console.log('Spotify Dashboard for YouTube Music loaded');
 
+    function formatTime(seconds) {
+        if (isNaN(seconds) || seconds < 0) return '0:00';
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    }
+
     // 1. Dashboard State
     const state = {
         isDashboardOpen: false,
-        lastTrackId: null
+        lastTrackId: null,
+        isDraggingProgress: false,
+        isDraggingVolume: false
     };
 
     // 2. Dashboard Template (Added Volume & Minimize)
@@ -88,49 +97,178 @@
     function setupEventListeners() {
         document.getElementById('ctrl-prev')?.addEventListener('click', (e) => {
             e.stopPropagation();
-            document.querySelector('#previous-button')?.click();
+            const btn = document.querySelector('.previous-button') || 
+                        document.querySelector('#previous-button') || 
+                        document.querySelector('tp-yt-paper-icon-button.previous-button') ||
+                        document.querySelector('[aria-label*="Previous"]') ||
+                        document.querySelector('[aria-label*="Prev"]');
+            if (btn) {
+                btn.click();
+            }
+            setTimeout(updateState, 50);
         });
         document.getElementById('ctrl-next')?.addEventListener('click', (e) => {
             e.stopPropagation();
-            document.querySelector('#next-button')?.click();
+            const btn = document.querySelector('.next-button') || 
+                        document.querySelector('#next-button') || 
+                        document.querySelector('tp-yt-paper-icon-button.next-button') ||
+                        document.querySelector('[aria-label*="Next"]');
+            if (btn) {
+                btn.click();
+            }
+            setTimeout(updateState, 50);
         });
         document.getElementById('ctrl-play-pause')?.addEventListener('click', (e) => {
             e.stopPropagation();
             document.querySelector('#play-pause-button')?.click();
+            setTimeout(updateState, 50);
         });
         document.getElementById('ctrl-minimize')?.addEventListener('click', (e) => {
             e.stopPropagation();
-            // Exit fullscreen if possible, otherwise just hide the player page
             if (document.fullscreenElement) {
                 document.exitFullscreen();
             } else {
-                // Click YTM's native minimize button
                 document.querySelector('tp-yt-paper-icon-button.ytmusic-player-page')?.click();
             }
         });
 
-        // Seek functionality
-        document.getElementById('progress-container')?.addEventListener('click', (e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const percent = (e.clientX - rect.left) / rect.width;
-            const progressBar = document.querySelector('#progress-bar.ytmusic-player-bar');
-            if (progressBar) {
-                progressBar.value = percent * progressBar.max;
-                progressBar.dispatchEvent(new Event('change'));
-            }
-        });
+        // Seek Drag & Click Handler
+        const progressContainer = document.getElementById('progress-container');
+        if (progressContainer) {
+            const handleProgressMove = (e) => {
+                const rect = progressContainer.getBoundingClientRect();
+                let percent = (e.clientX - rect.left) / rect.width;
+                percent = Math.max(0, Math.min(1, percent));
+                
+                const video = document.querySelector('video');
+                const progressBar = document.querySelector('#progress-bar.ytmusic-player-bar');
+                
+                if (video && video.duration) {
+                    video.currentTime = percent * video.duration;
+                    document.getElementById('time-current').innerText = formatTime(video.currentTime);
+                    document.getElementById('time-total').innerText = formatTime(video.duration);
+                } else if (progressBar) {
+                    progressBar.value = percent * progressBar.max;
+                    progressBar.dispatchEvent(new Event('change'));
+                }
+                
+                const progressFill = document.getElementById('progress-fill');
+                if (progressFill) progressFill.style.width = `${percent * 100}%`;
+            };
 
-        // Volume functionality
-        document.getElementById('volume-container')?.addEventListener('click', (e) => {
-            const rect = e.currentTarget.querySelector('.dashboard-volume-bar').getBoundingClientRect();
-            let percent = (e.clientX - rect.left) / rect.width;
-            percent = Math.max(0, Math.min(1, percent));
-            const volumeSlider = document.querySelector('#volume-slider');
-            if (volumeSlider) {
-                volumeSlider.value = percent * 100;
-                volumeSlider.dispatchEvent(new Event('change'));
+            progressContainer.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                state.isDraggingProgress = true;
+                handleProgressMove(e);
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (state.isDraggingProgress) {
+                    handleProgressMove(e);
+                }
+            });
+
+            window.addEventListener('mouseup', () => {
+                if (state.isDraggingProgress) {
+                    state.isDraggingProgress = false;
+                    updateState();
+                }
+            });
+        }
+
+        // Volume Drag & Click Handler
+        const volumeContainer = document.getElementById('volume-container');
+        if (volumeContainer) {
+            const handleVolumeMove = (e) => {
+                const video = document.querySelector('video');
+                const bar = volumeContainer.querySelector('.dashboard-volume-bar');
+                if (bar) {
+                    const rect = bar.getBoundingClientRect();
+                    let percent = (e.clientX - rect.left) / rect.width;
+                    percent = Math.max(0, Math.min(1, percent));
+                    
+                    if (video) {
+                        video.volume = percent;
+                        if (video.muted && percent > 0) video.muted = false;
+                    }
+                    const volumeSlider = document.querySelector('#volume-slider');
+                    if (volumeSlider) volumeSlider.value = percent * 100;
+                    
+                    const volumeFill = document.getElementById('volume-fill');
+                    if (volumeFill) volumeFill.style.width = `${percent * 100}%`;
+                }
+            };
+
+            volumeContainer.addEventListener('mousedown', (e) => {
+                if (e.target.closest('.volume-icon')) {
+                    e.stopPropagation();
+                    const video = document.querySelector('video');
+                    if (video) video.muted = !video.muted;
+                    const muteBtn = document.querySelector('.volume.ytmusic-player-bar tp-yt-paper-icon-button') || 
+                                    document.querySelector('.volume.ytmusic-player-bar');
+                    muteBtn?.click();
+                    updateState();
+                    return;
+                }
+
+                e.preventDefault();
+                state.isDraggingVolume = true;
+                handleVolumeMove(e);
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (state.isDraggingVolume) {
+                    handleVolumeMove(e);
+                }
+            });
+
+            window.addEventListener('mouseup', () => {
+                if (state.isDraggingVolume) {
+                    state.isDraggingVolume = false;
+                    updateState();
+                }
+            });
+        }
+
+        // Direct media event listeners for instant video updates
+        const attachVideoEvents = () => {
+            const video = document.querySelector('video');
+            if (video && !video.hasAttribute('dashboard-bound')) {
+                video.setAttribute('dashboard-bound', 'true');
+                ['timeupdate', 'volumechange', 'play', 'pause', 'seeking', 'seeked'].forEach(evt => {
+                    video.addEventListener(evt, updateState);
+                });
             }
-        });
+        };
+        attachVideoEvents();
+        setInterval(attachVideoEvents, 2000);
+    }
+
+    function getThumbnailFromItem(itemNode) {
+        if (!itemNode) return '';
+
+        // Check Polymer data object if DOM img is lazy-loaded or not yet rendered
+        const polyData = itemNode.data || itemNode.__data?.data || itemNode.__data;
+        if (polyData) {
+            const thumbs = polyData.thumbnail?.thumbnails || 
+                           polyData.musicItemRenderer?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails;
+            if (Array.isArray(thumbs) && thumbs.length > 0) {
+                const url = thumbs[thumbs.length - 1]?.url;
+                if (url) return url.replace(/=w\d+-h\d+/, '=w120-h120');
+            }
+        }
+
+        // DOM element fallbacks
+        const shadow = itemNode.querySelector('yt-img-shadow');
+        const imgEl = itemNode.querySelector('img#img') || itemNode.querySelector('img');
+        
+        let src = shadow?.getAttribute('src') || shadow?.src || shadow?.currentSrc ||
+                  imgEl?.src || imgEl?.getAttribute('src') || imgEl?.dataset?.src || '';
+
+        if (src && !src.startsWith('data:image')) {
+            return src.replace(/=w\d+-h\d+/, '=w120-h120');
+        }
+        return '';
     }
 
     // 4. State Update Logic
@@ -179,21 +317,38 @@
         }
 
         // 2. METADATA SYNC (Title/Artist)
-        const title = document.querySelector('ytmusic-player-bar .title')?.innerText || '...';
-        const artist = document.querySelector('ytmusic-player-bar .byline')?.innerText || '...';
+        const rawTitle = document.querySelector('ytmusic-player-bar .title')?.innerText || '...';
+        const rawArtist = document.querySelector('ytmusic-player-bar .byline')?.innerText || '...';
+        
+        const title = rawTitle.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+        const artist = rawArtist.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+
         document.querySelector('.dashboard-title').innerText = title;
         document.querySelector('.dashboard-artist').innerText = artist;
 
         // 3. PROGRESS SYNC
-        const progressBar = document.querySelector('#progress-bar.ytmusic-player-bar');
-        if (progressBar) {
-            const progress = (progressBar.value / progressBar.max) * 100;
-            document.getElementById('progress-fill').style.width = `${progress}%`;
-            
-            const timeInfo = document.querySelector('.time-info.ytmusic-player-bar')?.innerText || '0:00 / 0:00';
-            const [current, total] = timeInfo.split(' / ');
-            document.getElementById('time-current').innerText = current || '0:00';
-            document.getElementById('time-total').innerText = total || '0:00';
+        const video = document.querySelector('video');
+        if (!state.isDraggingProgress) {
+            if (video && !isNaN(video.duration) && video.duration > 0) {
+                const progress = (video.currentTime / video.duration) * 100;
+                document.getElementById('progress-fill').style.width = `${progress}%`;
+                document.getElementById('time-current').innerText = formatTime(video.currentTime);
+                document.getElementById('time-total').innerText = formatTime(video.duration);
+            } else {
+                const progressBar = document.querySelector('#progress-bar.ytmusic-player-bar');
+                if (progressBar) {
+                    const progress = (progressBar.value / progressBar.max) * 100;
+                    document.getElementById('progress-fill').style.width = `${progress}%`;
+                }
+                const timeInfo = document.querySelector('.time-info.ytmusic-player-bar')?.innerText || '';
+                if (timeInfo) {
+                    const parts = timeInfo.split('/').map(s => s.trim());
+                    if (parts.length === 2) {
+                        document.getElementById('time-current').innerText = parts[0];
+                        document.getElementById('time-total').innerText = parts[1];
+                    }
+                }
+            }
         }
 
         // 4. PLAY/PAUSE STATE
@@ -201,32 +356,99 @@
         document.getElementById('play-icon').style.display = isPlaying ? 'none' : 'block';
         document.getElementById('pause-icon').style.display = isPlaying ? 'block' : 'none';
 
-        // 5. IMPROVED UP NEXT EXTRACTION
-        // Instead of strict sibling matching, we find the "Selected" item and look for the next one
-        const queueItems = Array.from(document.querySelectorAll('ytmusic-player-queue-item'));
-        const selectedIndex = queueItems.findIndex(item => item.hasAttribute('selected'));
-        const upNextItem = queueItems[selectedIndex + 1];
+        // 5. IMPROVED UP NEXT EXTRACTION WITH CONSOLE LOGGING
+        const queueContainer = document.querySelector('ytmusic-player-queue') || document;
+        const queueItems = Array.from(queueContainer.querySelectorAll('ytmusic-player-queue-item'));
+        const rawCurrentTitle = document.querySelector('ytmusic-player-bar .title')?.innerText || '';
+        const currentTitle = rawCurrentTitle.trim().toLowerCase();
+
+        let currentIndex = -1;
+
+        if (currentTitle) {
+            // Priority 1: Title matches AND item is marked selected/playing
+            currentIndex = queueItems.findIndex(item => {
+                const itemTitle = (item.querySelector('.song-title')?.innerText || 
+                                    item.querySelector('.title')?.innerText || 
+                                    item.querySelector('yt-formatted-string')?.innerText || '').trim().toLowerCase();
+                if (!itemTitle) return false;
+                const isTitleMatch = itemTitle === currentTitle || itemTitle.includes(currentTitle) || currentTitle.includes(itemTitle);
+                if (!isTitleMatch) return false;
+
+                return item.hasAttribute('selected') || item.hasAttribute('playing') || item.classList.contains('selected') ||
+                       item.getAttribute('play-button-state') === 'playing' || item.querySelector('[icon="volume-up"]');
+            });
+
+            // Priority 2: Title matches current song title (regardless of attributes)
+            if (currentIndex === -1) {
+                currentIndex = queueItems.findIndex(item => {
+                    const itemTitle = (item.querySelector('.song-title')?.innerText || 
+                                        item.querySelector('.title')?.innerText || 
+                                        item.querySelector('yt-formatted-string')?.innerText || '').trim().toLowerCase();
+                    return itemTitle && (itemTitle === currentTitle || itemTitle.includes(currentTitle) || currentTitle.includes(itemTitle));
+                });
+            }
+        }
+
+        // Priority 3: Fallback attribute check if title is empty
+        if (currentIndex === -1) {
+            currentIndex = queueItems.findIndex(item => {
+                if (item.hasAttribute('selected') || item.hasAttribute('playing') || item.classList.contains('selected')) return true;
+                if (item.getAttribute('play-button-state') === 'playing' || item.getAttribute('play-button-state') === 'PAUSED') return true;
+                if (item.querySelector('[icon="volume-up"]') || item.querySelector('.play-button[state="playing"]')) return true;
+                return false;
+            });
+        }
+
+
+        let upNextItem = null;
+        let nextTitle = '';
+        let nextThumb = '';
+
+        if (currentIndex !== -1) {
+            for (let i = currentIndex + 1; i < queueItems.length; i++) {
+                const candidate = queueItems[i];
+                const candTitle = (candidate.querySelector('.song-title')?.innerText || 
+                                   candidate.querySelector('.title')?.innerText || 
+                                   candidate.querySelector('yt-formatted-string')?.innerText || '').trim();
+                
+                // Skip duplicate node of currently playing song if present
+                if (candTitle && candTitle !== '...' && candTitle.toLowerCase() !== currentTitle) {
+                    upNextItem = candidate;
+                    nextTitle = candTitle;
+                    break;
+                }
+            }
+            if (!upNextItem && currentIndex + 1 < queueItems.length) {
+                upNextItem = queueItems[currentIndex + 1];
+                nextTitle = (upNextItem.querySelector('.song-title')?.innerText || 
+                             upNextItem.querySelector('.title')?.innerText || '').trim();
+            }
+        }
 
         if (upNextItem) {
-            const nextTitle = upNextItem.querySelector('.song-title')?.innerText || 
-                              upNextItem.querySelector('.title')?.innerText || '...';
-            const nextThumb = upNextItem.querySelector('img')?.src || 
-                              upNextItem.querySelector('yt-img-shadow img')?.src || '';
+            nextThumb = getThumbnailFromItem(upNextItem);
+        }
+
+        // Console log debug info when track or upnext changes
+        if (state.lastTrackId !== rawCurrentTitle) {
+            state.lastTrackId = rawCurrentTitle;
+            console.log('[Spotify Dashboard Debug]', {
+                currentTitle: rawCurrentTitle,
+                totalQueueItems: queueItems.length,
+                matchedIndex: currentIndex,
+                detectedNextTitle: nextTitle || 'None',
+                nextThumbUrl: nextThumb || 'None'
+            });
+        }
+
+        if (nextTitle && nextTitle !== '...' && nextTitle !== '') {
             document.getElementById('upnext-title').innerText = nextTitle;
-            document.getElementById('upnext-thumb').style.backgroundImage = `url(${nextThumb})`;
+            if (nextThumb) {
+                document.getElementById('upnext-thumb').style.backgroundImage = `url("${nextThumb}")`;
+            }
             document.getElementById('dashboard-upnext').style.display = 'flex';
         } else {
-            // Check if queue is visible in sidebar for more robust scraping
-            const sidebarNext = document.querySelector('ytmusic-player-queue-item[playing] + ytmusic-player-queue-item');
-            if (sidebarNext) {
-                 const nextTitle = sidebarNext.querySelector('.song-title')?.innerText || '...';
-                 const nextThumb = sidebarNext.querySelector('img')?.src || '';
-                 document.getElementById('upnext-title').innerText = nextTitle;
-                 document.getElementById('upnext-thumb').style.backgroundImage = `url(${nextThumb})`;
-                 document.getElementById('dashboard-upnext').style.display = 'flex';
-            } else {
-                document.getElementById('dashboard-upnext').style.display = 'none';
-            }
+            document.getElementById('dashboard-upnext').style.display = 'none';
         }
 
         // 6. PLAYLIST CONTEXT
@@ -236,16 +458,23 @@
         document.querySelector('.dashboard-playlist-name').innerText = playlistName;
 
         // 7. VOLUME SYNC
-        const volumeSlider = document.querySelector('#volume-slider');
-        if (volumeSlider) {
-            const volumeVal = volumeSlider.value;
-            document.getElementById('volume-fill').style.width = `${volumeVal}%`;
+        if (!state.isDraggingVolume) {
+            if (video) {
+                const volumeVal = video.muted ? 0 : video.volume * 100;
+                document.getElementById('volume-fill').style.width = `${volumeVal}%`;
+            } else {
+                const volumeSlider = document.querySelector('#volume-slider');
+                if (volumeSlider) {
+                    const volumeVal = volumeSlider.value;
+                    document.getElementById('volume-fill').style.width = `${volumeVal}%`;
+                }
+            }
         }
     }
 
     // 5. Pulse Update
     init();
-    setInterval(updateState, 500);
+    setInterval(updateState, 100);
 
     // Font injection
     if (!document.getElementById('spotify-font-link')) {

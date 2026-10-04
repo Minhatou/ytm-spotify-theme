@@ -91,6 +91,40 @@ ytmusic-player-bar {
     --paper-slider-container-color: rgba(255, 255, 255, 0.1) !important;
 }
 
+/* Canvas Background & Contrast Overlay */
+#spotify-canvas-bg {
+    position: fixed;
+    top: -5%;
+    left: -5%;
+    width: 110vw;
+    height: 110vh;
+    background-size: cover;
+    background-position: center;
+    filter: blur(55px) brightness(0.75) saturate(1.35);
+    z-index: 998;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s ease, background-image 0.8s ease-in-out;
+}
+
+#spotify-canvas-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0.15) 50%, rgba(0, 0, 0, 0.65) 100%);
+    z-index: 999;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+
+body[dashboard-open] #spotify-canvas-bg,
+body[dashboard-open] #spotify-canvas-overlay {
+    opacity: 1;
+}
+
 /* Spotify Dashboard / TV Layout Overlay */
 #spotify-dashboard {
     position: fixed;
@@ -119,13 +153,17 @@ body[dashboard-open] #spotify-dashboard {
 /* Hide native elements when dashboard is open */
 body[dashboard-open] ytmusic-player-page #player-page-player,
 body[dashboard-open] ytmusic-player-page .middle-controls,
-body[dashboard-open] ytmusic-player-page .right-controls,
-body[dashboard-open] ytmusic-player-bar {
+body[dashboard-open] ytmusic-player-page .right-controls {
     display: none !important;
 }
 
-body[dashboard-open] #player-bar-background {
-    display: none !important;
+body[dashboard-open] ytmusic-player-bar {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    position: fixed !important;
+    top: -9999px !important;
+    left: -9999px !important;
+    z-index: -9999 !important;
 }
 
 /* TOP SECTION: Context & Up Next */
@@ -211,14 +249,19 @@ body[dashboard-open] #player-bar-background {
     margin: 0;
     line-height: 1.1;
     letter-spacing: -2px;
-    text-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    color: #ffffff;
+    text-shadow: 0 4px 25px rgba(0, 0, 0, 0.95), 0 2px 6px rgba(0, 0, 0, 0.95);
 }
 
 .dashboard-artist {
     font-size: 28px;
     font-weight: 700;
-    color: rgba(255, 255, 255, 0.8);
+    color: rgba(255, 255, 255, 0.95);
     margin-top: 20px;
+    white-space: normal;
+    line-height: 1.3;
+    display: block;
+    text-shadow: 0 3px 18px rgba(0, 0, 0, 0.95), 0 1px 4px rgba(0, 0, 0, 0.95);
 }
 
 /* BOTTOM SECTION: Timeline & Controls */
@@ -364,8 +407,18 @@ tp-yt-paper-icon-button.ytmusic-player-bar:hover {
     transform: scale(1.1) !important;
 }
 
+/* Volume Bar: Make it always visible in normal mode */
+.volume-slider.ytmusic-player-bar {
+    width: 100px !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+ytmusic-player-bar .volume {
+    width: 130px !important;
+}
+
 /* Hide YTM's default rounded bar elements that might clash */
-.ytmusic-player-bar .time-info, 
-.ytmusic-player-bar .volume-slider {
+.ytmusic-player-bar .time-info {
     color: var(--spotify-grey) !important;
 }
